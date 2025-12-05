@@ -98,43 +98,39 @@ class FoodItem(Base):
     id = Column(Integer, primary_key=True, index=True)
     name = Column(String, nullable=False)
     brand = Column(String, nullable=True)
-    per_unit = Column(String, default="100g")  # περιγραφή
-    protein_g = Column(Float, default=0)
-    carbs_g = Column(Float, default=0)
-    fat_g = Column(Float, default=0)
-    kcal = Column(Float, default=0)
-    tags = Column(String, nullable=True)  # comma-separated flags
-
+    protein_g = Column(Float, default=0.0)  # per 100g
+    carbs_g = Column(Float, default=0.0)    # per 100g
+    fat_g = Column(Float, default=0.0)      # per 100g
+    kcal = Column(Float, default=0.0)       # per 100g
 
 class Meal(Base):
     __tablename__ = "meals"
 
     id = Column(Integer, primary_key=True, index=True)
-    user_id = Column(Integer, ForeignKey("users.id"))
-    date = Column(Date, index=True)
-    meal_type = Column(String, nullable=False)  # Breakfast, Lunch, Snack, Dinner, Pre, Post
-    time = Column(String, nullable=True)  # "09:30"
-    notes = Column(Text, nullable=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    date = Column(Date, nullable=False)
+    meal_type = Column(String, nullable=False)
+    time = Column(String, nullable=True)
+    notes = Column(String, nullable=True)
 
-    user = relationship("User")
-    items = relationship("MealItem", back_populates="meal")
+    items = relationship(
+        "MealItem",
+        back_populates="meal",
+        cascade="all, delete-orphan"
+    )
 
 
 class MealItem(Base):
     __tablename__ = "meal_items"
 
     id = Column(Integer, primary_key=True, index=True)
-    meal_id = Column(Integer, ForeignKey("meals.id"))
-    food_id = Column(Integer, ForeignKey("food_items.id"))
+    meal_id = Column(Integer, ForeignKey("meals.id"), nullable=False)
+    food_id = Column(Integer, ForeignKey("food_items.id"), nullable=False)
     quantity_g = Column(Float, nullable=False)
-
-    protein_g = Column(Float, default=0)
-    carbs_g = Column(Float, default=0)
-    fat_g = Column(Float, default=0)
-    kcal = Column(Float, default=0)
 
     meal = relationship("Meal", back_populates="items")
     food = relationship("FoodItem")
+
 
 
 class TrainingSession(Base):
