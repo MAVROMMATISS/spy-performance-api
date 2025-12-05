@@ -2,7 +2,9 @@
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker, declarative_base
 
-DATABASE_URL = "sqlite:///./spy_performance.db"
+
+
+DATABASE_URL = "sqlite:///./spy_perf_v2.db"
 
 engine = create_engine(
     DATABASE_URL, connect_args={"check_same_thread": False}
@@ -14,7 +16,6 @@ Base = declarative_base()
 
 
 def get_db():
-    from fastapi import Depends, HTTPException
     db = SessionLocal()
     try:
         yield db
