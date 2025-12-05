@@ -1,4 +1,5 @@
 # app/main.py
+import os
 from fastapi import FastAPI, Depends, HTTPException
 from sqlalchemy.orm import Session
 from datetime import date
@@ -12,6 +13,17 @@ from fastapi.encoders import jsonable_encoder
 
 from .database import Base, engine, get_db
 from . import models, schemas
+
+#----------------------------------------------
+
+@app.post("/debug/reset-db")
+def reset_db():
+    if os.path.exists(DB_PATH):
+        os.remove(DB_PATH)
+    Base.metadata.create_all(bind=engine)
+    return {"status": "database_reset"}
+
+#----------------------------------------------
 
 Base.metadata.create_all(bind=engine)
 
