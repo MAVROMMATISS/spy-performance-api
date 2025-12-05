@@ -4,6 +4,10 @@ from sqlalchemy.orm import Session
 from datetime import date
 from typing import List
 
+
+from fastapi.encoders import jsonable_encoder
+'from sqlalchemy.orm import Session
+
 from .database import Base, engine, get_db
 from . import models, schemas
 
@@ -292,34 +296,30 @@ def daily_summary(user_id: int, d: date, db: Session = Depends(get_db)):
         readiness_state=readiness,
     )
 
+
+def _rows_to_dict(rows):
+    out = []
+    for obj in rows:
+        d = obj.__dict__.copy()
+        d.pop("_sa_instance_state", None)
+        out.append(d)
+    return out
+
 @app.get("/debug/all-data")
-def get_all_data():
-    conn = sqlite3.connect(DB_PATH)
-    conn.row_factory = sqlite3.Row
-    cur = conn.cursor()
+def get_all_data(db: Session = Depends(get_db)):
+    data = {
+        "users": _rows_to_dict(db.query(models.User).all()),
+        "weight_log": _rows_to_dict(db.query(models.WeightLog).all()),
+        "meals": _rows_to_dict(db.query(models.Meal).all()),
+        "meal_items": _rows_to_dict(db.query(models.MealItem).all()),
+        "training_sessions": _rows_to_dict(db.query(models.TrainingSession).all()),
+        "sleep_logs": _rows_to_dict(db.query(models.SleepLog).all()),
+        "ans_logs": _rows_to_dict(db.query(models.ANSLog).all()),
+        "daily_feel": _rows_to_dict(db.query(models.DailyFeel).all()),
+        "daily_targets": _rows_to_dict(db.query(models.DailyTargets).all()),
+        "daily_log": _rows_to_dict(db.query(models.DailyLog).all()),
+    }
+    # jsonable_encoder για safety σε datetime/date objects
+    return jsonable_encoder(data)
 
-    tables = [
-        "users",
-        "weight_log",
-        "meals",
-        "meal_items",
-        "training_sessions",
-        "sleep_logs",
-        "ans_logs",
-        "daily_feel",
-        "daily_targets"
-    ]
-
-    data = {}
-
-    for table in tables:
-        try:
-            rows = cur.execute(f"SELECT * FROM {table}").fetchall()
-            data[table] = [dict(r) for r in rows]
-        except Exception as e:
-            # In case table doesn't exist yet
-            data[table] = f"Error reading table: {e}"
-
-    conn.close()
-    return data
 
