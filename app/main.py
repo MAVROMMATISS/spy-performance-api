@@ -291,3 +291,35 @@ def daily_summary(user_id: int, d: date, db: Session = Depends(get_db)):
         deficit_kcal=deficit,
         readiness_state=readiness,
     )
+
+@app.get("/debug/all-data")
+def get_all_data():
+    conn = sqlite3.connect(DB_PATH)
+    conn.row_factory = sqlite3.Row
+    cur = conn.cursor()
+
+    tables = [
+        "users",
+        "weight_log",
+        "meals",
+        "meal_items",
+        "training_sessions",
+        "sleep_logs",
+        "ans_logs",
+        "daily_feel",
+        "daily_targets"
+    ]
+
+    data = {}
+
+    for table in tables:
+        try:
+            rows = cur.execute(f"SELECT * FROM {table}").fetchall()
+            data[table] = [dict(r) for r in rows]
+        except Exception as e:
+            # In case table doesn't exist yet
+            data[table] = f"Error reading table: {e}"
+
+    conn.close()
+    return data
+
