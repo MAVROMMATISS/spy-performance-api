@@ -559,3 +559,46 @@ def debug_daily(user_id: int, d: date, db: Session = Depends(get_db)):
 
 
 
+@app.get("/debug/ui", response_class=HTMLResponse)
+def debug_ui():
+    html = """
+    <html>
+      <head>
+        <title>Spy Debug Selector</title>
+      </head>
+      <body>
+        <h1>Spy Daily Debug</h1>
+        <form onsubmit="go(); return false;">
+          <label>User ID:
+            <input type="number" id="user_id" value="1" min="1">
+          </label>
+          <br><br>
+          <label>Date:
+            <input type="date" id="date">
+          </label>
+          <br><br>
+          <button type="submit">Go</button>
+        </form>
+
+        <script>
+          // βάλε default σήμερα
+          const today = new Date().toISOString().slice(0,10);
+          document.getElementById('date').value = today;
+
+          function go() {
+            const uid = document.getElementById('user_id').value;
+            const d   = document.getElementById('date').value;
+            if (!uid || !d) {
+              alert("Δώσε user_id και ημερομηνία");
+              return;
+            }
+            const url = `/debug/daily/${uid}/${d}`;
+            window.location.href = url;
+          }
+        </script>
+      </body>
+    </html>
+    """
+    return HTMLResponse(html)
+
+
