@@ -6,7 +6,7 @@ from typing import List
 
 
 from fastapi.encoders import jsonable_encoder
-'from sqlalchemy.orm import Session
+
 
 from .database import Base, engine, get_db
 from . import models, schemas
