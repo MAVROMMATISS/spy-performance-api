@@ -1,13 +1,25 @@
 # app/models.py
-from sqlalchemy import (
-    Column, Integer, String, Float, Date, DateTime,
-    ForeignKey, Enum, Text
-)
-from sqlalchemy.orm import relationship
-from datetime import datetime
-from .database import Base
+from datetime import datetime, date
 import enum
 
+from sqlalchemy import (
+    Column,
+    Integer,
+    String,
+    Float,
+    Date,
+    DateTime,
+    ForeignKey,
+    Enum,
+)
+from sqlalchemy.orm import relationship
+
+from .database import Base
+
+
+# ----------------------
+# Enums
+# ----------------------
 
 class ReadinessState(str, enum.Enum):
     HIGH = "HIGH"
@@ -15,6 +27,10 @@ class ReadinessState(str, enum.Enum):
     LOW = "LOW"
     RECOVERY = "RECOVERY"
 
+
+# ----------------------
+# Users & Settings
+# ----------------------
 
 class User(Base):
     __tablename__ = "users"
@@ -24,84 +40,77 @@ class User(Base):
     birth_date = Column(Date, nullable=True)
     gender = Column(String, nullable=True)
     height_cm = Column(Float, nullable=True)
-    created_at = Column(DateTime, default=datetime.utcnow)
 
     settings = relationship("UserSettings", back_populates="user", uselist=False)
+    weights = relationship("WeightLog", back_populates="user")
+    meals = relationship("Meal", back_populates="user")
+    trainings = relationship("TrainingSession", back_populates="user")
+    sleep_logs = relationship("SleepLog", back_populates="user")
+    ans_logs = relationship("ANSLog", back_populates="user")
+    daily_feels = relationship("DailyFeel", back_populates="user")
+    daily_targets = relationship("DailyTargets", back_populates="user")
+    daily_logs = relationship("DailyLog", back_populates="user")
 
 
 class UserSettings(Base):
     __tablename__ = "user_settings"
 
     id = Column(Integer, primary_key=True, index=True)
-    user_id = Column(Integer, ForeignKey("users.id"), unique=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False, unique=True)
+
     hrv_baseline = Column(Float, nullable=True)
     weight_goal_kg = Column(Float, nullable=True)
     protein_target_min_g = Column(Float, nullable=True)
     protein_target_max_g = Column(Float, nullable=True)
     default_maintenance_kcal = Column(Float, nullable=True)
+
     created_at = Column(DateTime, default=datetime.utcnow)
-    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    updated_at = Column(
+        DateTime,
+        default=datetime.utcnow,
+        onupdate=datetime.utcnow,
+    )
 
     user = relationship("User", back_populates="settings")
 
 
-class DailyLog(Base):
-    __tablename__ = "daily_log"
-
-    id = Column(Integer, primary_key=True, index=True)
-    user_id = Column(Integer, ForeignKey("users.id"))
-    date = Column(Date, index=True)
-
-    body_weight_kg = Column(Float, nullable=True)
-    readiness_state = Column(Enum(ReadinessState), nullable=True)
-
-    calories_in_kcal = Column(Float, default=0)
-    calories_out_training_kcal = Column(Float, default=0)
-    calculated_deficit_kcal = Column(Float, default=0)
-
-    notes_day = Column(Text, nullable=True)
-    created_at = Column(DateTime, default=datetime.utcnow)
-
-    user = relationship("User")
-
+# ----------------------
+# Weight
+# ----------------------
 
 class WeightLog(Base):
     __tablename__ = "weight_log"
 
     id = Column(Integer, primary_key=True, index=True)
-    user_id = Column(Integer, ForeignKey("users.id"))
-    date_time = Column(DateTime, default=datetime.utcnow)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
     weight_kg = Column(Float, nullable=False)
+    date_time = Column(DateTime, default=datetime.utcnow, nullable=False)
     source = Column(String, nullable=True)
-    note = Column(Text, nullable=True)
+    note = Column(String, nullable=True)
 
-    user = relationship("User")
+    user = relationship("User", back_populates="weights")
 
 
-class BodyComposition(Base):
-    __tablename__ = "body_composition"
-
-    id = Column(Integer, primary_key=True, index=True)
-    user_id = Column(Integer, ForeignKey("users.id"))
-    date = Column(Date, index=True)
-    body_fat_percent = Column(Float, nullable=True)
-    muscle_mass_kg = Column(Float, nullable=True)
-    waist_cm = Column(Float, nullable=True)
-    hip_cm = Column(Float, nullable=True)
-
-    user = relationship("User")
-
+# ----------------------
+# Food & Meals
+# ----------------------
 
 class FoodItem(Base):
+    """
+    Macros per 100g (ή per default serving).
+    Τα χρησιμοποιούμε μόνο για υπολογισμούς – δεν κρατάμε macros per meal item.
+    """
     __tablename__ = "food_items"
 
     id = Column(Integer, primary_key=True, index=True)
     name = Column(String, nullable=False)
     brand = Column(String, nullable=True)
-    protein_g = Column(Float, default=0.0)  # per 100g
-    carbs_g = Column(Float, default=0.0)    # per 100g
-    fat_g = Column(Float, default=0.0)      # per 100g
-    kcal = Column(Float, default=0.0)       # per 100g
+
+    protein_g = Column(Float, default=0.0)  # per 100 g
+    carbs_g = Column(Float, default=0.0)    # per 100 g
+    fat_g = Column(Float, default=0.0)      # per 100 g
+    kcal = Column(Float, default=0.0)       # per 100 g
+
 
 class Meal(Base):
     __tablename__ = "meals"
@@ -109,18 +118,23 @@ class Meal(Base):
     id = Column(Integer, primary_key=True, index=True)
     user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
     date = Column(Date, nullable=False)
-    meal_type = Column(String, nullable=False)
+    meal_type = Column(String, nullable=False)  # π.χ. πρωινό, μεσημεριανό, snack
     time = Column(String, nullable=True)
     notes = Column(String, nullable=True)
 
+    user = relationship("User", back_populates="meals")
     items = relationship(
         "MealItem",
         back_populates="meal",
-        cascade="all, delete-orphan"
+        cascade="all, delete-orphan",
     )
 
 
 class MealItem(Base):
+    """
+    ΜΟΝΟ food_id + quantity_g.
+    Τα macros υπολογίζονται δυναμικά από τα FoodItem macros.
+    """
     __tablename__ = "meal_items"
 
     id = Column(Integer, primary_key=True, index=True)
@@ -132,61 +146,96 @@ class MealItem(Base):
     food = relationship("FoodItem")
 
 
+# ----------------------
+# Training
+# ----------------------
 
 class TrainingSession(Base):
     __tablename__ = "training_sessions"
 
     id = Column(Integer, primary_key=True, index=True)
-    user_id = Column(Integer, ForeignKey("users.id"))
-    date = Column(Date, index=True)
-    start_time = Column(String, nullable=True)
-    end_time = Column(String, nullable=True)
-    type = Column(String, nullable=False)  # Zone 2 Run, Spinning, Legs Heavy, κλπ.
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+
+    date = Column(Date, nullable=False)
+    type = Column(String, nullable=False)
+
     duration_min = Column(Float, nullable=True)
     avg_hr = Column(Float, nullable=True)
     max_hr = Column(Float, nullable=True)
     calories_kcal = Column(Float, nullable=True)
     rpe = Column(Float, nullable=True)
-    notes = Column(Text, nullable=True)
+    notes = Column(String, nullable=True)
 
-    user = relationship("User")
+    start_time = Column(String, nullable=True)
+    end_time = Column(String, nullable=True)
+
+    user = relationship("User", back_populates="trainings")
 
 
-class ANSLog(Base):
-    __tablename__ = "ans_log"
-
-    id = Column(Integer, primary_key=True, index=True)
-    user_id = Column(Integer, ForeignKey("users.id"))
-    date = Column(Date, index=True)
-    ans_change = Column(Float, nullable=True)
-    sleep_charge_score = Column(Float, nullable=True)
-    source = Column(String, default="Polar")
-
-    user = relationship("User")
-
+# ----------------------
+# Sleep / ANS
+# ----------------------
 
 class SleepLog(Base):
-    __tablename__ = "sleep_log"
+    __tablename__ = "sleep_logs"
 
     id = Column(Integer, primary_key=True, index=True)
-    user_id = Column(Integer, ForeignKey("users.id"))
-    date = Column(Date, index=True)  # η νύχτα που αφορά
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+
+    date = Column(Date, nullable=False)
     sleep_duration_min = Column(Float, nullable=True)
     resting_hr = Column(Float, nullable=True)
     hrv_ms = Column(Float, nullable=True)
-    recharge_status = Column(String, nullable=True)  # OK / Compromised / Poor
+    recharge_status = Column(String, nullable=True)
     sleep_score = Column(Float, nullable=True)
-    notes = Column(Text, nullable=True)
+    notes = Column(String, nullable=True)
 
-    user = relationship("User")
+    user = relationship("User", back_populates="sleep_logs")
+
+
+class ANSLog(Base):
+    __tablename__ = "ans_logs"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+
+    date = Column(Date, nullable=False)
+    ans_change = Column(Float, nullable=True)
+    sleep_charge_score = Column(Float, nullable=True)
+    source = Column(String, nullable=True)
+
+    user = relationship("User", back_populates="ans_logs")
+
+
+# ----------------------
+# Daily Feel / Targets / Log
+# ----------------------
+
+class DailyFeel(Base):
+    __tablename__ = "daily_feel"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+
+    date = Column(Date, nullable=False)
+    energy_1_10 = Column(Integer, nullable=True)
+    fatigue_1_10 = Column(Integer, nullable=True)
+    soreness_1_10 = Column(Integer, nullable=True)
+    mood_1_10 = Column(Integer, nullable=True)
+    performance_feeling_1_10 = Column(Integer, nullable=True)
+    stress_1_10 = Column(Integer, nullable=True)
+    notes = Column(String, nullable=True)
+
+    user = relationship("User", back_populates="daily_feels")
 
 
 class DailyTargets(Base):
     __tablename__ = "daily_targets"
 
     id = Column(Integer, primary_key=True, index=True)
-    user_id = Column(Integer, ForeignKey("users.id"))
-    date = Column(Date, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+
+    date = Column(Date, nullable=False)
     readiness_state = Column(Enum(ReadinessState), nullable=True)
 
     target_protein_min_g = Column(Float, nullable=True)
@@ -195,51 +244,28 @@ class DailyTargets(Base):
     target_fat_g = Column(Float, nullable=True)
     target_calories_kcal = Column(Float, nullable=True)
 
-    training_recommendation = Column(Text, nullable=True)
-    recovery_recommendation = Column(Text, nullable=True)
+    training_recommendation = Column(String, nullable=True)
+    recovery_recommendation = Column(String, nullable=True)
 
-    user = relationship("User")
-
-
-class Supplement(Base):
-    __tablename__ = "supplements"
-
-    id = Column(Integer, primary_key=True, index=True)
-    name = Column(String, nullable=False)
-    description = Column(Text, nullable=True)
-    has_iron = Column(Integer, default=0)
-    has_b12 = Column(Integer, default=0)
-    has_folate = Column(Integer, default=0)
+    user = relationship("User", back_populates="daily_targets")
 
 
-class SupplementIntake(Base):
-    __tablename__ = "supplement_intake"
+class DailyLog(Base):
+    """
+    Header ανά μέρα ανά χρήστη.
+    Σύνδεσμος μεταξύ drills (weights, training, meals) και high-level summary.
+    """
+    __tablename__ = "daily_log"
 
     id = Column(Integer, primary_key=True, index=True)
-    user_id = Column(Integer, ForeignKey("users.id"))
-    supplement_id = Column(Integer, ForeignKey("supplements.id"))
-    date = Column(Date, index=True)
-    dose = Column(String, default="1")
-    time = Column(String, nullable=True)
-    notes = Column(Text, nullable=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
 
-    user = relationship("User")
-    supplement = relationship("Supplement")
+    date = Column(Date, nullable=False, index=True)
 
+    body_weight_kg = Column(Float, nullable=True)
+    calories_in_kcal = Column(Float, nullable=True)
+    calories_out_training_kcal = Column(Float, nullable=True)
+    calculated_deficit_kcal = Column(Float, nullable=True)
+    readiness_state = Column(Enum(ReadinessState), nullable=True)
 
-class DailyFeel(Base):
-    __tablename__ = "daily_feel"
-
-    id = Column(Integer, primary_key=True, index=True)
-    user_id = Column(Integer, ForeignKey("users.id"))
-    date = Column(Date, index=True)
-
-    energy_1_10 = Column(Integer, nullable=True)
-    fatigue_1_10 = Column(Integer, nullable=True)
-    soreness_1_10 = Column(Integer, nullable=True)
-    mood_1_10 = Column(Integer, nullable=True)
-    performance_feeling_1_10 = Column(Integer, nullable=True)
-    stress_1_10 = Column(Integer, nullable=True)
-    notes = Column(Text, nullable=True)
-
-    user = relationship("User")
+    user = relationship("User", back_populates="daily_logs")
