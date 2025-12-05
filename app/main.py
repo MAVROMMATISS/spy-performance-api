@@ -18,7 +18,11 @@ app = FastAPI(
 
 @app.get("/health")
 def health_check():
-    return {"status": "ok"}
+    return {
+        "status": "ok",
+        "message": "Spy Performance API is running 🚀",
+        "version": "0.1.0",
+    }
 
 
 # -------- USERS --------
