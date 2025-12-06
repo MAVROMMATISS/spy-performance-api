@@ -659,7 +659,7 @@ def init_basic_foods(db: Session = Depends(get_db)):
         },
         {
             "name": "Goat yogurt",
-            "protein_g": 4,8,
+            "protein_g": 4.8,
             "carbs_g": 4.0,
             "fat_g": 4.6,
             "kcal": 77.0,
