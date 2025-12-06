@@ -7,6 +7,7 @@ from fastapi.responses import HTMLResponse
 from sqlalchemy.orm import Session
 from sqlalchemy import func
 
+
 from .database import Base, engine, get_db
 from . import models, schemas
 
@@ -607,4 +608,104 @@ def debug_daily(user_id: int, d: date, db: Session = Depends(get_db)):
 
     html.append("</body></html>")
     return HTMLResponse("".join(html))
+
+# -------- DEBUG: INIT BASIC FOOD ITEMS --------
+
+
+
+@app.post("/debug/init-basic-foods")
+def init_basic_foods(db: Session = Depends(get_db)):
+    """
+    Δημιουργεί βασικά τρόφιμα (per 100 g) αν δεν υπάρχουν ήδη.
+    Μπορείς να το καλέσεις από /docs μία φορά.
+    """
+
+    # ΟΝΟΜΑ → macros ανά 100 g (προσεγγιστικά, μπορείς να τα αλλάξεις αργότερα)
+    presets = [
+        {
+            "name": "Fage 2% yogurt",
+            "protein_g": 10.0,
+            "carbs_g": 4.0,
+            "fat_g": 2.0,
+            "kcal": 73.0,
+        },
+        {
+            "name": "Oats",
+            "protein_g": 13.5,
+            "carbs_g": 60.0,
+            "fat_g": 7.0,
+            "kcal": 380.0,
+        },
+        {
+            "name": "Whole grain bread",
+            "protein_g": 13.0,
+            "carbs_g": 40.0,
+            "fat_g": 4.0,
+            "kcal": 250.0,
+        },
+        {
+            "name": "Butter",
+            "protein_g": 0.5,
+            "carbs_g": 0.5,
+            "fat_g": 82.0,
+            "kcal": 740.0,
+        },
+        {
+            "name": "Raisins",
+            "protein_g": 3.0,
+            "carbs_g": 79.0,
+            "fat_g": 0.5,
+            "kcal": 299.0,
+        },
+        {
+            "name": "Goat yogurt",
+            "protein_g": 4,8,
+            "carbs_g": 4.0,
+            "fat_g": 4.6,
+            "kcal": 77.0,
+        },
+    ]
+
+    created = []
+    skipped = []
+
+    for p in presets:
+        existing = (
+            db.query(models.FoodItem)
+            .filter(models.FoodItem.name == p["name"])
+            .first()
+        )
+        if existing:
+            skipped.append(p["name"])
+        else:
+            item = models.FoodItem(**p)
+            db.add(item)
+            created.append(p["name"])
+
+    db.commit()
+
+    return {
+        "status": "ok",
+        "created": created,
+        "skipped_existing": skipped,
+    }
+
+
+@app.get("/debug/foods")
+def list_foods(db: Session = Depends(get_db)):
+    """
+    Γρήγορη λίστα όλων των τροφίμων στο DB (για έλεγχο).
+    """
+    foods = db.query(models.FoodItem).all()
+    return [
+        {
+            "id": f.id,
+            "name": f.name,
+            "protein_g": f.protein_g,
+            "carbs_g": f.carbs_g,
+            "fat_g": f.fat_g,
+            "kcal": f.kcal,
+        }
+        for f in foods
+    ]
 
